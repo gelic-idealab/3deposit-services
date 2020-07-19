@@ -1,10 +1,12 @@
 version: '3'
 
 services:
-  proxy:
-    container_name: proxy
+  traefik:
+    container_name: traefik
     image: traefik:latest
-    command: --api.insecure=true --providers.docker
+    command: 
+      - --api.insecure=true 
+      - --providers.docker
     ports:
       - "80:80"
       - "8080:8080" # The Web UI (enabled by --api)
@@ -13,38 +15,39 @@ services:
     networks:
       - proxy
     restart: always
-
-  sketchfab-service:
-    build: ./sketchfab/
-    container_name: sketchfab-service
-    networks:
-      - proxy
-    command: pipenv run gunicorn -b 0.0.0.0:5000 sketchfab-service:app
-    restart: always
-    labels:
-      - traefik.http.routers.sketchfab-service.rule=PathPrefix(`/sketchfab`)
-
-
-  aws-service:
+  
+  aws:
     build: ./aws/
     container_name: aws-service
     networks:
       - proxy
-    command: python aws-service.py
+    command: pipenv run python aws-service.py
     restart: always
-    labels:
-      - traefik.http.routers.aws-service.rule=PathPrefix(`/aws`)
-      - traefik.http.middlewares.test-stripprefix.stripprefix.prefixes=/aws
+    labels: 
+      - "traefik.enable=true"
+      - "traefik.http.routers.aws-service.rule=Host(`aws.localhost`)"
 
-  vimeo-service:
+  sketchfab:
+    build: ./sketchfab/
+    container_name: sketchfab-service
+    networks:
+      - proxy
+    command: pipenv run python sketchfab-service.py
+    restart: always
+    labels: 
+      - "traefik.enable=true"
+      - "traefik.http.routers.sketchfab-service.rule=Host(`sketchfab.localhost`)" 
+
+  vimeo:
     build: ./vimeo/
     container_name: vimeo-service
     networks:
       - proxy
-    command: pipenv run gunicorn -b 0.0.0.0:5000 vimeo-service:app
+    command: pipenv run python vimeo-service.py
     restart: always
-    labels:
-      - traefik.http.routers.vimeo-service.rule=PathPrefix(`/vimeo`)
+    labels: 
+      - "traefik.enable=true"
+      - "traefik.http.routers.vimeo-service.rule=Host(`vimeo.localhost`)"
 
 networks:
     proxy:
